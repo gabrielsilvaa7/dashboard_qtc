@@ -29,13 +29,13 @@
         h1, h2, h3, p, label {
             color: var(--text-color);
             margin: 0;
-            text-shadow: none; /* Removendo qualquer brilho anterior */
+            text-shadow: none;
             font-weight: 500;
         }
 
         h1 {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-size: 28px;
         }
 
@@ -52,13 +52,35 @@
             margin: 0 auto;
         }
 
+        /* Botão de Copiar */
+        .header-actions {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn-copy {
+            background-color: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--text-color);
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .btn-copy:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
         /* Painel de Filtros (Segmentação) */
         .filters-container {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
@@ -86,7 +108,7 @@
             border-radius: 6px;
             font-size: 14px;
             outline: none;
-            color-scheme: dark; /* Para o calendário ficar escuro */
+            color-scheme: dark;
         }
 
         select:focus, input[type="date"]:focus {
@@ -175,6 +197,11 @@
             </div>
         </div>
 
+        <!-- AÇÕES -->
+        <div class="header-actions">
+            <button id="btn-copy" class="btn-copy" onclick="copiarDados()">📋 Copiar Dados</button>
+        </div>
+
         <!-- KPIs -->
         <div class="kpi-row">
             <div class="kpi-card">
@@ -216,8 +243,8 @@
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS9faCvsxi4P_mQ-2CNqUJ8H9m9onYcMwOlBonyqT_wFe-BACv_aLuD1ZD8fBgCTdRN8qsm4oGANHt/pub?gid=949734563&single=true&output=csv";
 
     // Configuração global de fontes e cores do Chart.js
-    Chart.defaults.color = '#ffffff'; // Fonte Branca
-    Chart.defaults.borderColor = '#30363d'; // Grade escura
+    Chart.defaults.color = '#ffffff'; 
+    Chart.defaults.borderColor = '#30363d'; 
     Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
     // Paleta de Cores
@@ -225,8 +252,20 @@
     const neonPink = '#FF00FF';
 
     // Variáveis Globais
-    let rawData = []; // Guarda todos os dados baixados
+    let rawData = [];
     let chartBairroUsersInst, chartBairroEvalsInst, chartTempoUsersInst, chartTempoEvalsInst;
+
+    // Objeto para armazenar as métricas atuais para a função de copiar
+    let currentMetrics = {
+        avalAndroid: 0,
+        avalIos: 0,
+        obreiros: 0,
+        obreiras: 0,
+        membroHomem: 0,
+        membroMulher: 0,
+        totalAval: 0,
+        totalUser: 0
+    };
 
     // Elementos HTML de Filtro
     const filterCidade = document.getElementById('filter-cidade');
@@ -234,15 +273,14 @@
     const filterInicio = document.getElementById('filter-inicio');
     const filterFim = document.getElementById('filter-fim');
 
-    // Inicialização
     function initDashboard() {
         Papa.parse(SHEET_CSV_URL, {
             download: true,
             header: true,
             complete: function(results) {
-                rawData = results.data.filter(row => row['Métrica']); // Remove linhas vazias
+                rawData = results.data.filter(row => row['Métrica']); 
                 initializeFilters();
-                applyFilters(); // Processa a primeira vez
+                applyFilters(); 
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard-content').style.display = 'block';
@@ -253,7 +291,6 @@
         });
     }
 
-    // Configura as opções iniciais dos filtros
     function initializeFilters() {
         let cidades = new Set();
         let datas = [];
@@ -261,7 +298,6 @@
         rawData.forEach(row => {
             if (row['Cidade']) cidades.add(row['Cidade']);
             
-            // Formatando data para YYYY-MM-DD para achar min/max
             const dataHora = row['Data e Hora de Envio'];
             if(dataHora) {
                 const [dia, mes, anoTime] = dataHora.split('/');
@@ -270,7 +306,6 @@
             }
         });
 
-        // Preenche Dropdown de Cidades
         Array.from(cidades).sort().forEach(cidade => {
             let option = document.createElement('option');
             option.value = cidade;
@@ -278,14 +313,12 @@
             filterCidade.appendChild(option);
         });
 
-        // Configura Datas Iniciais e Finais disponíveis
         if(datas.length > 0) {
             datas.sort();
             filterInicio.value = datas[0];
             filterFim.value = datas[datas.length - 1];
         }
 
-        // Eventos: Quando mudar um filtro, atualiza o Dashboard
         filterCidade.addEventListener('change', () => {
             updateBairrosDropdown();
             applyFilters();
@@ -295,10 +328,9 @@
         filterFim.addEventListener('change', applyFilters);
     }
 
-    // Atualiza lista de bairros baseado na cidade escolhida
     function updateBairrosDropdown() {
         const cidadeSelecionada = filterCidade.value;
-        filterBairro.innerHTML = '<option value="all">Todos os Bairros</option>'; // Reseta
+        filterBairro.innerHTML = '<option value="all">Todos os Bairros</option>';
         
         if (cidadeSelecionada === 'all') return;
 
@@ -317,7 +349,6 @@
         });
     }
 
-    // Aplica os filtros escolhidos e processa os dados
     function applyFilters() {
         const selCidade = filterCidade.value;
         const selBairro = filterBairro.value;
@@ -325,13 +356,9 @@
         const dataFim = filterFim.value;
 
         const filteredData = rawData.filter(row => {
-            // Filtro de Cidade
             if (selCidade !== 'all' && row['Cidade'] !== selCidade) return false;
-            
-            // Filtro de Bairro
             if (selBairro !== 'all' && row['Bairro'] !== selBairro) return false;
 
-            // Filtro de Data
             const dataHora = row['Data e Hora de Envio'];
             if (dataHora) {
                 const [dia, mes, anoTime] = dataHora.split('/');
@@ -348,7 +375,6 @@
         processData(filteredData);
     }
 
-    // Helpers de Ordenação
     function sortObjectByDate(obj) {
         return Object.keys(obj).sort((a, b) => {
             const [dayA, monthA, yearA] = a.split('/');
@@ -357,8 +383,10 @@
         }).reduce((acc, key) => { acc[key] = obj[key]; return acc; }, {});
     }
 
-    // Processa os dados filtrados
     function processData(data) {
+        // Resetando métricas globais para a cópia
+        currentMetrics = { avalAndroid: 0, avalIos: 0, obreiros: 0, obreiras: 0, membroHomem: 0, membroMulher: 0, totalAval: 0, totalUser: 0 };
+        
         let totalUsers = 0, totalEvals = 0;
         let bairroUsers = {}, bairroEvals = {}, tempoUsers = {}, tempoEvals = {};
 
@@ -367,6 +395,14 @@
             const qty = parseInt(row['Quantidade']) || 0;
             const bairro = row['Bairro'];
             const dataApenas = row['Data e Hora de Envio'].split(' ')[0];
+
+            // Rastreando métricas específicas para o botão de copiar
+            if (metric === 'Avaliações Android') currentMetrics.avalAndroid += qty;
+            else if (metric === 'Avaliações iOS' || metric === 'Avaliações IOS') currentMetrics.avalIos += qty;
+            else if (metric === 'Obreiros') currentMetrics.obreiros += qty;
+            else if (metric === 'Obreiras') currentMetrics.obreiras += qty;
+            else if (metric === 'Membros (Homens)') currentMetrics.membroHomem += qty;
+            else if (metric === 'Membros (Mulheres)') currentMetrics.membroMulher += qty;
 
             if (metric.includes('Avaliaç')) {
                 totalEvals += qty;
@@ -379,23 +415,65 @@
             }
         });
 
-        // Ordenações
+        currentMetrics.totalAval = totalEvals;
+        currentMetrics.totalUser = totalUsers;
+
         tempoUsers = sortObjectByDate(tempoUsers);
         tempoEvals = sortObjectByDate(tempoEvals);
         const sortBairros = (obj) => Object.fromEntries(Object.entries(obj).sort(([,a],[,b]) => b - a));
         bairroUsers = sortBairros(bairroUsers);
         bairroEvals = sortBairros(bairroEvals);
 
-        // Atualiza UI dos KPIs
         document.getElementById('kpi-users').innerText = totalUsers;
         document.getElementById('kpi-evals').innerText = totalEvals;
 
         renderCharts(bairroUsers, bairroEvals, tempoUsers, tempoEvals);
     }
 
+    // Função para Copiar Dados
+    function copiarDados() {
+        let periodoText = "Todo o período";
+        const dInicio = filterInicio.value;
+        const dFim = filterFim.value;
+
+        // Função auxiliar para formatar YYYY-MM-DD para DD/MM/YYYY
+        const formatBR = (dataISO) => dataISO.split('-').reverse().join('/');
+
+        if (dInicio && dFim) {
+            periodoText = `${formatBR(dInicio)} a ${formatBR(dFim)}`;
+        } else if (dInicio) {
+            periodoText = `A partir de ${formatBR(dInicio)}`;
+        } else if (dFim) {
+            periodoText = `Até ${formatBR(dFim)}`;
+        }
+
+        const texto = `Período: ${periodoText}
+
+------AVALIAÇÕES------
+
+Avaliações Android: ${currentMetrics.avalAndroid}
+Avaliações IOS: ${currentMetrics.avalIos}
+Total Avaliações: ${currentMetrics.totalAval}
+
+------NOVOS USUÁRIOS------
+Obreiros: ${currentMetrics.obreiros}
+Obreiras: ${currentMetrics.obreiras}
+Membros (Homens): ${currentMetrics.membroHomem}
+Membros (Mulheres): ${currentMetrics.membroMulher}
+Total Novos Usuários: ${currentMetrics.totalUser}`;
+
+        navigator.clipboard.writeText(texto).then(() => {
+            const btn = document.getElementById('btn-copy');
+            const originalText = btn.innerText;
+            btn.innerText = "✅ Copiado com sucesso!";
+            setTimeout(() => { btn.innerText = originalText; }, 2000);
+        }).catch(err => {
+            alert("Erro ao copiar os dados: " + err);
+        });
+    }
+
     function renderCharts(bUsers, bEvals, tUsers, tEvals) {
         
-        // 1. Gráfico de Bairro x Usuários (Azul Neon)
         const ctxBairroUsers = document.getElementById('chartBairroUsers').getContext('2d');
         if(chartBairroUsersInst) chartBairroUsersInst.destroy();
         chartBairroUsersInst = new Chart(ctxBairroUsers, {
@@ -405,7 +483,7 @@
                 datasets: [{
                     label: 'Novos Usuários',
                     data: Object.values(bUsers),
-                    backgroundColor: neonBlue, // Cor Azul Neon
+                    backgroundColor: neonBlue, 
                     borderRadius: 4
                 }]
             },
@@ -418,7 +496,6 @@
             }
         });
 
-        // 2. Gráfico de Bairro x Avaliações (Rosa Neon)
         const ctxBairroEvals = document.getElementById('chartBairroEvals').getContext('2d');
         if(chartBairroEvalsInst) chartBairroEvalsInst.destroy();
         chartBairroEvalsInst = new Chart(ctxBairroEvals, {
@@ -428,7 +505,7 @@
                 datasets: [{
                     label: 'Avaliações',
                     data: Object.values(bEvals),
-                    backgroundColor: neonPink, // Cor Rosa Neon
+                    backgroundColor: neonPink, 
                     borderRadius: 4
                 }]
             },
@@ -441,7 +518,6 @@
             }
         });
 
-        // 3. Gráfico de Tempo x Usuários (Linhas Azul Neon)
         const ctxTempoUsers = document.getElementById('chartTempoUsers').getContext('2d');
         if(chartTempoUsersInst) chartTempoUsersInst.destroy();
         chartTempoUsersInst = new Chart(ctxTempoUsers, {
@@ -451,7 +527,7 @@
                 datasets: [{
                     label: 'Novos Usuários',
                     data: Object.values(tUsers),
-                    borderColor: neonBlue, // Linha Azul Neon
+                    borderColor: neonBlue, 
                     backgroundColor: neonBlue,
                     borderWidth: 2,
                     tension: 0.3,
@@ -468,7 +544,6 @@
             }
         });
 
-        // 4. Gráfico de Tempo x Avaliações (Linhas Rosa Neon)
         const ctxTempoEvals = document.getElementById('chartTempoEvals').getContext('2d');
         if(chartTempoEvalsInst) chartTempoEvalsInst.destroy();
         chartTempoEvalsInst = new Chart(ctxTempoEvals, {
@@ -478,7 +553,7 @@
                 datasets: [{
                     label: 'Avaliações',
                     data: Object.values(tEvals),
-                    borderColor: neonPink, // Linha Rosa Neon
+                    borderColor: neonPink, 
                     backgroundColor: neonPink,
                     borderWidth: 2,
                     tension: 0.3,
@@ -496,7 +571,6 @@
         });
     }
 
-    // Inicia o dashboard ao carregar a página
     window.onload = initDashboard;
 </script>
 
