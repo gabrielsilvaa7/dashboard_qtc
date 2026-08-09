@@ -26,7 +26,7 @@
         }
 
         /* Textos Limpos e Brancos */
-        h1, h2, h3, p, label {
+        h1, h2, h3, p, label, span {
             color: var(--text-color);
             margin: 0;
             text-shadow: none;
@@ -131,6 +131,8 @@
             border-radius: 12px;
             padding: 20px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
         }
 
         .kpi-card h3 {
@@ -142,6 +144,34 @@
         .kpi-value {
             font-size: 40px;
             font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        /* Detalhamento dentro do KPI */
+        .kpi-details {
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 20px;
+            text-align: left;
+            margin-top: auto; /* Empurra os detalhes pro fundo do card */
+        }
+
+        .kpi-detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .kpi-detail-item span:first-child {
+            color: #c9d1d9; /* Tom de branco mais suave para o rótulo */
+        }
+        
+        .kpi-detail-item span:last-child {
+            font-weight: bold;
+            font-size: 15px;
         }
 
         /* Gráficos */
@@ -204,13 +234,46 @@
 
         <!-- KPIs -->
         <div class="kpi-row">
+            <!-- Card Usuários -->
             <div class="kpi-card">
                 <h3>Total de Novos Usuários</h3>
                 <p class="kpi-value" id="kpi-users">0</p>
+                
+                <div class="kpi-details">
+                    <div class="kpi-detail-item">
+                        <span>Obreiros:</span>
+                        <span id="kpi-obreiros">0</span>
+                    </div>
+                    <div class="kpi-detail-item">
+                        <span>Membros (Homens):</span>
+                        <span id="kpi-membro-homem">0</span>
+                    </div>
+                    <div class="kpi-detail-item">
+                        <span>Obreiras:</span>
+                        <span id="kpi-obreiras">0</span>
+                    </div>
+                    <div class="kpi-detail-item">
+                        <span>Membros (Mulheres):</span>
+                        <span id="kpi-membro-mulher">0</span>
+                    </div>
+                </div>
             </div>
+
+            <!-- Card Avaliações -->
             <div class="kpi-card">
                 <h3>Total de Avaliações</h3>
                 <p class="kpi-value" id="kpi-evals">0</p>
+                
+                <div class="kpi-details">
+                    <div class="kpi-detail-item">
+                        <span>Avaliações Android:</span>
+                        <span id="kpi-aval-android">0</span>
+                    </div>
+                    <div class="kpi-detail-item">
+                        <span>Avaliações IOS:</span>
+                        <span id="kpi-aval-ios">0</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -255,7 +318,7 @@
     let rawData = [];
     let chartBairroUsersInst, chartBairroEvalsInst, chartTempoUsersInst, chartTempoEvalsInst;
 
-    // Objeto para armazenar as métricas atuais para a função de copiar
+    // Objeto para armazenar as métricas atuais
     let currentMetrics = {
         avalAndroid: 0,
         avalIos: 0,
@@ -384,7 +447,7 @@
     }
 
     function processData(data) {
-        // Resetando métricas globais para a cópia
+        // Resetando métricas globais
         currentMetrics = { avalAndroid: 0, avalIos: 0, obreiros: 0, obreiras: 0, membroHomem: 0, membroMulher: 0, totalAval: 0, totalUser: 0 };
         
         let totalUsers = 0, totalEvals = 0;
@@ -396,7 +459,7 @@
             const bairro = row['Bairro'];
             const dataApenas = row['Data e Hora de Envio'].split(' ')[0];
 
-            // Rastreando métricas específicas para o botão de copiar
+            // Rastreando detalhes das métricas
             if (metric === 'Avaliações Android') currentMetrics.avalAndroid += qty;
             else if (metric === 'Avaliações iOS' || metric === 'Avaliações IOS') currentMetrics.avalIos += qty;
             else if (metric === 'Obreiros') currentMetrics.obreiros += qty;
@@ -424,19 +487,26 @@
         bairroUsers = sortBairros(bairroUsers);
         bairroEvals = sortBairros(bairroEvals);
 
+        // Atualizando interface - Totais
         document.getElementById('kpi-users').innerText = totalUsers;
         document.getElementById('kpi-evals').innerText = totalEvals;
+
+        // Atualizando interface - Submétricas
+        document.getElementById('kpi-obreiros').innerText = currentMetrics.obreiros;
+        document.getElementById('kpi-obreiras').innerText = currentMetrics.obreiras;
+        document.getElementById('kpi-membro-homem').innerText = currentMetrics.membroHomem;
+        document.getElementById('kpi-membro-mulher').innerText = currentMetrics.membroMulher;
+        document.getElementById('kpi-aval-android').innerText = currentMetrics.avalAndroid;
+        document.getElementById('kpi-aval-ios').innerText = currentMetrics.avalIos;
 
         renderCharts(bairroUsers, bairroEvals, tempoUsers, tempoEvals);
     }
 
-    // Função para Copiar Dados
     function copiarDados() {
         let periodoText = "Todo o período";
         const dInicio = filterInicio.value;
         const dFim = filterFim.value;
 
-        // Função auxiliar para formatar YYYY-MM-DD para DD/MM/YYYY
         const formatBR = (dataISO) => dataISO.split('-').reverse().join('/');
 
         if (dInicio && dFim) {
