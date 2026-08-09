@@ -25,6 +25,8 @@
             padding: 20px;
         }
 
+        * { box-sizing: border-box; }
+
         /* Textos Limpos e Brancos */
         h1, h2, h3, p, label, span {
             color: var(--text-color);
@@ -52,7 +54,7 @@
             margin: 0 auto;
         }
 
-        /* Botão de Copiar */
+        /* Botões do Topo */
         .header-actions {
             text-align: center;
             margin-bottom: 30px;
@@ -155,7 +157,7 @@
             grid-template-columns: 1fr 1fr;
             gap: 12px 20px;
             text-align: left;
-            margin-top: auto; /* Empurra os detalhes pro fundo do card */
+            margin-top: auto;
         }
 
         .kpi-detail-item {
@@ -166,7 +168,7 @@
         }
 
         .kpi-detail-item span:first-child {
-            color: #c9d1d9; /* Tom de branco mais suave para o rótulo */
+            color: #c9d1d9;
         }
         
         .kpi-detail-item span:last-child {
@@ -189,6 +191,69 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        /* Container do Canvas para permitir redimensionamento */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            min-height: 300px;
+            margin-top: 10px;
+        }
+
+        /* Botão Ampliar Gráfico */
+        .btn-expand {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            z-index: 10;
+            transition: 0.2s;
+        }
+
+        .btn-expand:hover {
+            border-color: var(--blue-neon);
+        }
+
+        /* Modo Tela Cheia */
+        .chart-card.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            background-color: var(--bg-color); /* Fundo escuro total */
+            border-radius: 0;
+            border: none;
+            padding: 40px;
+            margin: 0;
+        }
+
+        .chart-card.fullscreen .btn-expand {
+            top: 20px;
+            right: 30px;
+            font-size: 14px;
+            padding: 8px 16px;
+            background-color: rgba(255, 0, 0, 0.1);
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+        
+        .chart-card.fullscreen .btn-expand:hover {
+            background-color: #ff4444;
+            color: #fff;
         }
         
         .loading { text-align: center; font-size: 18px; margin-top: 50px; }
@@ -281,10 +346,16 @@
         <h2>Desempenho por Bairro</h2>
         <div class="charts-row">
             <div class="chart-card">
-                <canvas id="chartBairroUsers"></canvas>
+                <button class="btn-expand" onclick="toggleExpand(this)">⛶ Ampliar</button>
+                <div class="canvas-container">
+                    <canvas id="chartBairroUsers"></canvas>
+                </div>
             </div>
             <div class="chart-card">
-                <canvas id="chartBairroEvals"></canvas>
+                <button class="btn-expand" onclick="toggleExpand(this)">⛶ Ampliar</button>
+                <div class="canvas-container">
+                    <canvas id="chartBairroEvals"></canvas>
+                </div>
             </div>
         </div>
 
@@ -292,10 +363,16 @@
         <h2>Evolução ao Longo do Tempo</h2>
         <div class="charts-row">
             <div class="chart-card">
-                <canvas id="chartTempoUsers"></canvas>
+                <button class="btn-expand" onclick="toggleExpand(this)">⛶ Ampliar</button>
+                <div class="canvas-container">
+                    <canvas id="chartTempoUsers"></canvas>
+                </div>
             </div>
             <div class="chart-card">
-                <canvas id="chartTempoEvals"></canvas>
+                <button class="btn-expand" onclick="toggleExpand(this)">⛶ Ampliar</button>
+                <div class="canvas-container">
+                    <canvas id="chartTempoEvals"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -310,31 +387,35 @@
     Chart.defaults.borderColor = '#30363d'; 
     Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-    // Paleta de Cores
     const neonBlue = '#00E5FF';
     const neonPink = '#FF00FF';
 
-    // Variáveis Globais
     let rawData = [];
     let chartBairroUsersInst, chartBairroEvalsInst, chartTempoUsersInst, chartTempoEvalsInst;
 
-    // Objeto para armazenar as métricas atuais
     let currentMetrics = {
-        avalAndroid: 0,
-        avalIos: 0,
-        obreiros: 0,
-        obreiras: 0,
-        membroHomem: 0,
-        membroMulher: 0,
-        totalAval: 0,
-        totalUser: 0
+        avalAndroid: 0, avalIos: 0, obreiros: 0, obreiras: 0, 
+        membroHomem: 0, membroMulher: 0, totalAval: 0, totalUser: 0
     };
 
-    // Elementos HTML de Filtro
     const filterCidade = document.getElementById('filter-cidade');
     const filterBairro = document.getElementById('filter-bairro');
     const filterInicio = document.getElementById('filter-inicio');
     const filterFim = document.getElementById('filter-fim');
+
+    // Função de Tela Cheia
+    function toggleExpand(btn) {
+        const card = btn.closest('.chart-card');
+        card.classList.toggle('fullscreen');
+        
+        if (card.classList.contains('fullscreen')) {
+            btn.innerHTML = '✖ Fechar';
+            document.body.style.overflow = 'hidden'; // Remove scroll do fundo
+        } else {
+            btn.innerHTML = '⛶ Ampliar';
+            document.body.style.overflow = 'auto'; // Volta o scroll
+        }
+    }
 
     function initDashboard() {
         Papa.parse(SHEET_CSV_URL, {
@@ -431,10 +512,8 @@
                 if (dataInicio && dataFormatada < dataInicio) return false;
                 if (dataFim && dataFormatada > dataFim) return false;
             }
-
             return true;
         });
-
         processData(filteredData);
     }
 
@@ -447,7 +526,6 @@
     }
 
     function processData(data) {
-        // Resetando métricas globais
         currentMetrics = { avalAndroid: 0, avalIos: 0, obreiros: 0, obreiras: 0, membroHomem: 0, membroMulher: 0, totalAval: 0, totalUser: 0 };
         
         let totalUsers = 0, totalEvals = 0;
@@ -459,7 +537,6 @@
             const bairro = row['Bairro'];
             const dataApenas = row['Data e Hora de Envio'].split(' ')[0];
 
-            // Rastreando detalhes das métricas
             if (metric === 'Avaliações Android') currentMetrics.avalAndroid += qty;
             else if (metric === 'Avaliações iOS' || metric === 'Avaliações IOS') currentMetrics.avalIos += qty;
             else if (metric === 'Obreiros') currentMetrics.obreiros += qty;
@@ -487,11 +564,8 @@
         bairroUsers = sortBairros(bairroUsers);
         bairroEvals = sortBairros(bairroEvals);
 
-        // Atualizando interface - Totais
         document.getElementById('kpi-users').innerText = totalUsers;
         document.getElementById('kpi-evals').innerText = totalEvals;
-
-        // Atualizando interface - Submétricas
         document.getElementById('kpi-obreiros').innerText = currentMetrics.obreiros;
         document.getElementById('kpi-obreiras').innerText = currentMetrics.obreiras;
         document.getElementById('kpi-membro-homem').innerText = currentMetrics.membroHomem;
@@ -543,6 +617,12 @@ Total Novos Usuários: ${currentMetrics.totalUser}`;
     }
 
     function renderCharts(bUsers, bEvals, tUsers, tEvals) {
+        // Opção importante para a tela cheia: maintainAspectRatio: false
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false, // Isso permite que o gráfico cresça livremente na tela cheia
+            plugins: { legend: { display: false } }
+        };
         
         const ctxBairroUsers = document.getElementById('chartBairroUsers').getContext('2d');
         if(chartBairroUsersInst) chartBairroUsersInst.destroy();
@@ -550,20 +630,9 @@ Total Novos Usuários: ${currentMetrics.totalUser}`;
             type: 'bar',
             data: {
                 labels: Object.keys(bUsers),
-                datasets: [{
-                    label: 'Novos Usuários',
-                    data: Object.values(bUsers),
-                    backgroundColor: neonBlue, 
-                    borderRadius: 4
-                }]
+                datasets: [{ data: Object.values(bUsers), backgroundColor: neonBlue, borderRadius: 4 }]
             },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: { display: true, text: 'Novos Usuários por Bairro' },
-                    legend: { display: false }
-                }
-            }
+            options: { ...chartOptions, plugins: { title: { display: true, text: 'Novos Usuários por Bairro' }, legend: { display: false } } }
         });
 
         const ctxBairroEvals = document.getElementById('chartBairroEvals').getContext('2d');
@@ -572,20 +641,9 @@ Total Novos Usuários: ${currentMetrics.totalUser}`;
             type: 'bar',
             data: {
                 labels: Object.keys(bEvals),
-                datasets: [{
-                    label: 'Avaliações',
-                    data: Object.values(bEvals),
-                    backgroundColor: neonPink, 
-                    borderRadius: 4
-                }]
+                datasets: [{ data: Object.values(bEvals), backgroundColor: neonPink, borderRadius: 4 }]
             },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: { display: true, text: 'Avaliações por Bairro' },
-                    legend: { display: false }
-                }
-            }
+            options: { ...chartOptions, plugins: { title: { display: true, text: 'Avaliações por Bairro' }, legend: { display: false } } }
         });
 
         const ctxTempoUsers = document.getElementById('chartTempoUsers').getContext('2d');
@@ -594,24 +652,9 @@ Total Novos Usuários: ${currentMetrics.totalUser}`;
             type: 'line',
             data: {
                 labels: Object.keys(tUsers),
-                datasets: [{
-                    label: 'Novos Usuários',
-                    data: Object.values(tUsers),
-                    borderColor: neonBlue, 
-                    backgroundColor: neonBlue,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    fill: false
-                }]
+                datasets: [{ data: Object.values(tUsers), borderColor: neonBlue, backgroundColor: neonBlue, borderWidth: 2, tension: 0.3, fill: false }]
             },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: { display: true, text: 'Evolução de Novos Usuários' },
-                    legend: { display: false }
-                },
-                scales: { y: { beginAtZero: true } }
-            }
+            options: { ...chartOptions, scales: { y: { beginAtZero: true } }, plugins: { title: { display: true, text: 'Evolução de Novos Usuários' }, legend: { display: false } } }
         });
 
         const ctxTempoEvals = document.getElementById('chartTempoEvals').getContext('2d');
@@ -620,24 +663,9 @@ Total Novos Usuários: ${currentMetrics.totalUser}`;
             type: 'line',
             data: {
                 labels: Object.keys(tEvals),
-                datasets: [{
-                    label: 'Avaliações',
-                    data: Object.values(tEvals),
-                    borderColor: neonPink, 
-                    backgroundColor: neonPink,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    fill: false
-                }]
+                datasets: [{ data: Object.values(tEvals), borderColor: neonPink, backgroundColor: neonPink, borderWidth: 2, tension: 0.3, fill: false }]
             },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: { display: true, text: 'Evolução das Avaliações' },
-                    legend: { display: false }
-                },
-                scales: { y: { beginAtZero: true } }
-            }
+            options: { ...chartOptions, scales: { y: { beginAtZero: true } }, plugins: { title: { display: true, text: 'Evolução das Avaliações' }, legend: { display: false } } }
         });
     }
 
