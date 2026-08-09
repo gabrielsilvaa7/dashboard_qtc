@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Quero te Conhecer</title>
+    <!-- Carregando PapaParse para ler o CSV e Chart.js para os gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --text-color: #ffffff;
+            --border-color: #30363d;
+            --blue-neon: #00E5FF;
+            --pink-neon: #FF00FF;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Textos Limpos e Brancos */
+        h1, h2, h3, p, label {
+            color: var(--text-color);
+            margin: 0;
+            text-shadow: none; /* Removendo qualquer brilho anterior */
+            font-weight: 500;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        h2 {
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Painel de Filtros (Segmentação) */
+        .filters-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group label {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #8b949e;
+        }
+
+        select, input[type="date"] {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            color-scheme: dark; /* Para o calendário ficar escuro */
+        }
+
+        select:focus, input[type="date"]:focus {
+            border-color: var(--blue-neon);
+        }
+
+        /* KPIs */
+        .kpi-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .kpi-card {
+            flex: 1;
+            min-width: 250px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .kpi-card h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #8b949e;
+        }
+
+        .kpi-value {
+            font-size: 40px;
+            font-weight: bold;
+        }
+
+        /* Gráficos */
+        .charts-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .chart-card {
+            flex: 1;
+            min-width: 300px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .loading { text-align: center; font-size: 18px; margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <h1>Dashboard - Quero te Conhecer</h1>
+    
+    <div id="loading" class="loading">Baixando e processando dados...</div>
+
+    <div id="dashboard-content" style="display: none;">
+        
+        <!-- PAINEL DE FILTROS -->
+        <div class="filters-container">
+            <div class="filter-group">
+                <label for="filter-cidade">Cidade:</label>
+                <select id="filter-cidade">
+                    <option value="all">Todas as Cidades</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-bairro">Bairro:</label>
+                <select id="filter-bairro">
+                    <option value="all">Todos os Bairros</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-inicio">Data Início:</label>
+                <input type="date" id="filter-inicio">
+            </div>
+            <div class="filter-group">
+                <label for="filter-fim">Data Fim:</label>
+                <input type="date" id="filter-fim">
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <h3>Total de Novos Usuários</h3>
+                <p class="kpi-value" id="kpi-users">0</p>
+            </div>
+            <div class="kpi-card">
+                <h3>Total de Avaliações</h3>
+                <p class="kpi-value" id="kpi-evals">0</p>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS DE BARRAS -->
+        <h2>Desempenho por Bairro</h2>
+        <div class="charts-row">
+            <div class="chart-card">
+                <canvas id="chartBairroUsers"></canvas>
+            </div>
+            <div class="chart-card">
+                <canvas id="chartBairroEvals"></canvas>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS DE LINHAS -->
+        <h2>Evolução ao Longo do Tempo</h2>
+        <div class="charts-row">
+            <div class="chart-card">
+                <canvas id="chartTempoUsers"></canvas>
+            </div>
+            <div class="chart-card">
+                <canvas id="chartTempoEvals"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Link CSV publicado do Google Sheets
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS9faCvsxi4P_mQ-2CNqUJ8H9m9onYcMwOlBonyqT_wFe-BACv_aLuD1ZD8fBgCTdRN8qsm4oGANHt/pub?gid=949734563&single=true&output=csv";
+
+    // Configuração global de fontes e cores do Chart.js
+    Chart.defaults.color = '#ffffff'; // Fonte Branca
+    Chart.defaults.borderColor = '#30363d'; // Grade escura
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+    // Paleta de Cores
+    const neonBlue = '#00E5FF';
+    const neonPink = '#FF00FF';
+
+    // Variáveis Globais
+    let rawData = []; // Guarda todos os dados baixados
+    let chartBairroUsersInst, chartBairroEvalsInst, chartTempoUsersInst, chartTempoEvalsInst;
+
+    // Elementos HTML de Filtro
+    const filterCidade = document.getElementById('filter-cidade');
+    const filterBairro = document.getElementById('filter-bairro');
+    const filterInicio = document.getElementById('filter-inicio');
+    const filterFim = document.getElementById('filter-fim');
+
+    // Inicialização
+    function initDashboard() {
+        Papa.parse(SHEET_CSV_URL, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                rawData = results.data.filter(row => row['Métrica']); // Remove linhas vazias
+                initializeFilters();
+                applyFilters(); // Processa a primeira vez
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
+            },
+            error: function(err) {
+                document.getElementById('loading').innerText = "Erro ao carregar dados da planilha.";
+            }
+        });
+    }
+
+    // Configura as opções iniciais dos filtros
+    function initializeFilters() {
+        let cidades = new Set();
+        let datas = [];
+
+        rawData.forEach(row => {
+            if (row['Cidade']) cidades.add(row['Cidade']);
+            
+            // Formatando data para YYYY-MM-DD para achar min/max
+            const dataHora = row['Data e Hora de Envio'];
+            if(dataHora) {
+                const [dia, mes, anoTime] = dataHora.split('/');
+                const ano = anoTime.split(' ')[0];
+                datas.push(`${ano}-${mes}-${dia}`);
+            }
+        });
+
+        // Preenche Dropdown de Cidades
+        Array.from(cidades).sort().forEach(cidade => {
+            let option = document.createElement('option');
+            option.value = cidade;
+            option.text = cidade;
+            filterCidade.appendChild(option);
+        });
+
+        // Configura Datas Iniciais e Finais disponíveis
+        if(datas.length > 0) {
+            datas.sort();
+            filterInicio.value = datas[0];
+            filterFim.value = datas[datas.length - 1];
+        }
+
+        // Eventos: Quando mudar um filtro, atualiza o Dashboard
+        filterCidade.addEventListener('change', () => {
+            updateBairrosDropdown();
+            applyFilters();
+        });
+        filterBairro.addEventListener('change', applyFilters);
+        filterInicio.addEventListener('change', applyFilters);
+        filterFim.addEventListener('change', applyFilters);
+    }
+
+    // Atualiza lista de bairros baseado na cidade escolhida
+    function updateBairrosDropdown() {
+        const cidadeSelecionada = filterCidade.value;
+        filterBairro.innerHTML = '<option value="all">Todos os Bairros</option>'; // Reseta
+        
+        if (cidadeSelecionada === 'all') return;
+
+        let bairros = new Set();
+        rawData.forEach(row => {
+            if (row['Cidade'] === cidadeSelecionada && row['Bairro']) {
+                bairros.add(row['Bairro']);
+            }
+        });
+
+        Array.from(bairros).sort().forEach(bairro => {
+            let option = document.createElement('option');
+            option.value = bairro;
+            option.text = bairro;
+            filterBairro.appendChild(option);
+        });
+    }
+
+    // Aplica os filtros escolhidos e processa os dados
+    function applyFilters() {
+        const selCidade = filterCidade.value;
+        const selBairro = filterBairro.value;
+        const dataInicio = filterInicio.value;
+        const dataFim = filterFim.value;
+
+        const filteredData = rawData.filter(row => {
+            // Filtro de Cidade
+            if (selCidade !== 'all' && row['Cidade'] !== selCidade) return false;
+            
+            // Filtro de Bairro
+            if (selBairro !== 'all' && row['Bairro'] !== selBairro) return false;
+
+            // Filtro de Data
+            const dataHora = row['Data e Hora de Envio'];
+            if (dataHora) {
+                const [dia, mes, anoTime] = dataHora.split('/');
+                const ano = anoTime.split(' ')[0];
+                const dataFormatada = `${ano}-${mes}-${dia}`;
+                
+                if (dataInicio && dataFormatada < dataInicio) return false;
+                if (dataFim && dataFormatada > dataFim) return false;
+            }
+
+            return true;
+        });
+
+        processData(filteredData);
+    }
+
+    // Helpers de Ordenação
+    function sortObjectByDate(obj) {
+        return Object.keys(obj).sort((a, b) => {
+            const [dayA, monthA, yearA] = a.split('/');
+            const [dayB, monthB, yearB] = b.split('/');
+            return new Date(`${yearA}-${monthA}-${dayA}`) - new Date(`${yearB}-${monthB}-${dayB}`);
+        }).reduce((acc, key) => { acc[key] = obj[key]; return acc; }, {});
+    }
+
+    // Processa os dados filtrados
+    function processData(data) {
+        let totalUsers = 0, totalEvals = 0;
+        let bairroUsers = {}, bairroEvals = {}, tempoUsers = {}, tempoEvals = {};
+
+        data.forEach(row => {
+            const metric = row['Métrica'];
+            const qty = parseInt(row['Quantidade']) || 0;
+            const bairro = row['Bairro'];
+            const dataApenas = row['Data e Hora de Envio'].split(' ')[0];
+
+            if (metric.includes('Avaliaç')) {
+                totalEvals += qty;
+                bairroEvals[bairro] = (bairroEvals[bairro] || 0) + qty;
+                tempoEvals[dataApenas] = (tempoEvals[dataApenas] || 0) + qty;
+            } else {
+                totalUsers += qty;
+                bairroUsers[bairro] = (bairroUsers[bairro] || 0) + qty;
+                tempoUsers[dataApenas] = (tempoUsers[dataApenas] || 0) + qty;
+            }
+        });
+
+        // Ordenações
+        tempoUsers = sortObjectByDate(tempoUsers);
+        tempoEvals = sortObjectByDate(tempoEvals);
+        const sortBairros = (obj) => Object.fromEntries(Object.entries(obj).sort(([,a],[,b]) => b - a));
+        bairroUsers = sortBairros(bairroUsers);
+        bairroEvals = sortBairros(bairroEvals);
+
+        // Atualiza UI dos KPIs
+        document.getElementById('kpi-users').innerText = totalUsers;
+        document.getElementById('kpi-evals').innerText = totalEvals;
+
+        renderCharts(bairroUsers, bairroEvals, tempoUsers, tempoEvals);
+    }
+
+    function renderCharts(bUsers, bEvals, tUsers, tEvals) {
+        
+        // 1. Gráfico de Bairro x Usuários (Azul Neon)
+        const ctxBairroUsers = document.getElementById('chartBairroUsers').getContext('2d');
+        if(chartBairroUsersInst) chartBairroUsersInst.destroy();
+        chartBairroUsersInst = new Chart(ctxBairroUsers, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(bUsers),
+                datasets: [{
+                    label: 'Novos Usuários',
+                    data: Object.values(bUsers),
+                    backgroundColor: neonBlue, // Cor Azul Neon
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Novos Usuários por Bairro' },
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // 2. Gráfico de Bairro x Avaliações (Rosa Neon)
+        const ctxBairroEvals = document.getElementById('chartBairroEvals').getContext('2d');
+        if(chartBairroEvalsInst) chartBairroEvalsInst.destroy();
+        chartBairroEvalsInst = new Chart(ctxBairroEvals, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(bEvals),
+                datasets: [{
+                    label: 'Avaliações',
+                    data: Object.values(bEvals),
+                    backgroundColor: neonPink, // Cor Rosa Neon
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Avaliações por Bairro' },
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // 3. Gráfico de Tempo x Usuários (Linhas Azul Neon)
+        const ctxTempoUsers = document.getElementById('chartTempoUsers').getContext('2d');
+        if(chartTempoUsersInst) chartTempoUsersInst.destroy();
+        chartTempoUsersInst = new Chart(ctxTempoUsers, {
+            type: 'line',
+            data: {
+                labels: Object.keys(tUsers),
+                datasets: [{
+                    label: 'Novos Usuários',
+                    data: Object.values(tUsers),
+                    borderColor: neonBlue, // Linha Azul Neon
+                    backgroundColor: neonBlue,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Evolução de Novos Usuários' },
+                    legend: { display: false }
+                },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // 4. Gráfico de Tempo x Avaliações (Linhas Rosa Neon)
+        const ctxTempoEvals = document.getElementById('chartTempoEvals').getContext('2d');
+        if(chartTempoEvalsInst) chartTempoEvalsInst.destroy();
+        chartTempoEvalsInst = new Chart(ctxTempoEvals, {
+            type: 'line',
+            data: {
+                labels: Object.keys(tEvals),
+                datasets: [{
+                    label: 'Avaliações',
+                    data: Object.values(tEvals),
+                    borderColor: neonPink, // Linha Rosa Neon
+                    backgroundColor: neonPink,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Evolução das Avaliações' },
+                    legend: { display: false }
+                },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Inicia o dashboard ao carregar a página
+    window.onload = initDashboard;
+</script>
+
+</body>
+</html>
