@@ -572,7 +572,14 @@
 
         tempoUsers = sortObjectByDate(tempoUsers);
         tempoEvals = sortObjectByDate(tempoEvals);
-        const sortBairros = (obj) => Object.fromEntries(Object.entries(obj).sort(([,a],[,b]) => b - a));
+        
+        // Filtro adicional: apenas itens com valor maior que 0 e ordenados
+        const sortBairros = (obj) => Object.fromEntries(
+            Object.entries(obj)
+                .filter(([,val]) => val > 0) // <--- Filtro aplicado aqui
+                .sort(([,a],[,b]) => b - a)
+        );
+
         bairroUsers = sortBairros(bairroUsers);
         bairroEvals = sortBairros(bairroEvals);
 
